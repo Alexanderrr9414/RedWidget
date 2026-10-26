@@ -4,10 +4,19 @@ const GLib = imports.gi.GLib;
 const St = imports.gi.St;
 const Mainloop = imports.mainloop;
 const ByteArray = imports.byteArray;
+const PopupMenu = imports.ui.popupMenu;
+const Settings = imports.ui.settings;
+
+const MIN_SIZE = 0.75;
+const MAX_SIZE = 1.5;
+const DEFAULT_SIZE = 1;
 
 class NetworkInfoDesklet extends Desklet.Desklet {
     constructor(metadata, deskletId) {
         super(metadata, deskletId);
+
+        this.settings = new Settings.DeskletSettings(this, metadata.uuid, deskletId);
+        this.settings.bind("size", "size", this._applySize);
 
         this._previousCounters = null;
         this._timer = 0;
@@ -82,6 +91,36 @@ class NetworkInfoDesklet extends Desklet.Desklet {
 
         this.setHeader(_("Red"));
         this.setContent(content);
+
+        this.actor.set_scale(this.size, this.size);
+        this._addResizeMenu();
+    }
+
+    _addResizeMenu() {
+        const resize = new PopupMenu.PopupSubMenuMenuItem(_("Redimensionar"));
+        this._sizeSlider = new PopupMenu.PopupSliderMenuItem(
+            (this.size - MIN_SIZE) / (MAX_SIZE - MIN_SIZE)
+        );
+        this._sizeSlider.connect("value-changed", (slider, value) => {
+            const rawSize = MIN_SIZE + value * (MAX_SIZE - MIN_SIZE);
+            this.size = Math.round(rawSize * 20) / 20;
+            this._applySize();
+            slider.setValue((this.size - MIN_SIZE) / (MAX_SIZE - MIN_SIZE));
+        });
+        resize.menu.addMenuItem(this._sizeSlider);
+        resize.menu.addAction(_("Tamaño normal"), () => {
+            this.size = DEFAULT_SIZE;
+            this._applySize();
+            this._sizeSlider.setValue((DEFAULT_SIZE - MIN_SIZE) / (MAX_SIZE - MIN_SIZE));
+        });
+        this._menu.addMenuItem(resize);
+    }
+
+    _applySize() {
+        if (!this.actor || !this.size) {
+            return;
+        }
+        this.actor.set_scale(this.size, this.size);
     }
 
     _createMetric(title, value, accent) {
