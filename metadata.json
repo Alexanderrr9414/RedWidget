@@ -1,0 +1,8 @@
+{
+  "uuid": "netinfo@local",
+  "name": "Red en vivo",
+  "description": "Muestra la velocidad de descarga y subida, y las direcciones IP.",
+  "icon": "network-wired",
+  "prevent-decorations": false,
+  "max-instances": "1"
+}
