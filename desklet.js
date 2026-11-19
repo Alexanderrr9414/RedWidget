@@ -15,6 +15,14 @@ class NetworkInfoDesklet extends Desklet.Desklet {
     constructor(metadata, deskletId) {
         super(metadata, deskletId);
 
+        this.size = DEFAULT_SIZE;
+
+        try {
+            this._menuManager = new PopupMenu.PopupMenuManager(this);
+        } catch (e) {
+            global.logError(e);
+        }
+
         this.settings = new Settings.DeskletSettings(this, metadata.uuid, deskletId);
         this.settings.bind("size", "size", this._applySize);
 
@@ -23,6 +31,14 @@ class NetworkInfoDesklet extends Desklet.Desklet {
         this._publicIp = _("Consultando...");
         this._lastPublicIpRequest = 0;
         this._removed = false;
+        this._sessionReceived = 0;
+        this._sessionSent = 0;
+        this._copyFeedbackTimeouts = [];
+        this._interfaceLabel = new St.Label({
+            text: "",
+            style: "font-size: 9px; color: #9eabc0;"
+        });
+
         this._status = new St.Label({
             text: "● " + _("ACTIVA"),
             style: "font-size: 10px; color: #6ee7a8;"
@@ -38,6 +54,10 @@ class NetworkInfoDesklet extends Desklet.Desklet {
         });
         this._localIp = new St.Label({ text: _("Consultando...") });
         this._publicIpLabel = new St.Label({ text: this._publicIp });
+        this._sessionLabel = new St.Label({
+            text: _("Sesión: ↓ 0 B  ↑ 0 B"),
+            style: "font-size: 9px; color: #9eabc0;"
+        });
 
         const content = new St.BoxLayout({
             vertical: true,
@@ -52,7 +72,10 @@ class NetworkInfoDesklet extends Desklet.Desklet {
         });
         title.set_x_expand(true);
         heading.add_child(title);
-        heading.add_child(this._status);
+        const headingRight = new St.BoxLayout({ vertical: true, style: "spacing: 1px;" });
+        headingRight.add_child(this._status);
+        headingRight.add_child(this._interfaceLabel);
+        heading.add_child(headingRight);
 
         const speeds = new St.BoxLayout({ vertical: false, style: "spacing: 8px;" });
         const downloadCard = this._createMetric(_("↓  DESCARGA"), this._download, "#65b8ff");
@@ -66,6 +89,7 @@ class NetworkInfoDesklet extends Desklet.Desklet {
         content.add_child(speeds);
         content.add_child(this._createIpRow(_("IP LOCAL"), this._localIp));
         content.add_child(this._createIpRow(_("IP PÚBLICA"), this._publicIpLabel));
+        content.add_child(this._sessionLabel);
 
         const footer = new St.BoxLayout({ vertical: false });
         const credit = new St.Button({
@@ -92,28 +116,10 @@ class NetworkInfoDesklet extends Desklet.Desklet {
         this.setHeader(_("Red"));
         this.setContent(content);
 
-        this.actor.set_scale(this.size, this.size);
-        this._addResizeMenu();
-    }
-
-    _addResizeMenu() {
-        const resize = new PopupMenu.PopupSubMenuMenuItem(_("Redimensionar"));
-        this._sizeSlider = new PopupMenu.PopupSliderMenuItem(
-            (this.size - MIN_SIZE) / (MAX_SIZE - MIN_SIZE)
-        );
-        this._sizeSlider.connect("value-changed", (slider, value) => {
-            const rawSize = MIN_SIZE + value * (MAX_SIZE - MIN_SIZE);
-            this.size = Math.round(rawSize * 20) / 20;
-            this._applySize();
-            slider.setValue((this.size - MIN_SIZE) / (MAX_SIZE - MIN_SIZE));
-        });
-        resize.menu.addMenuItem(this._sizeSlider);
-        resize.menu.addAction(_("Tamaño normal"), () => {
+        if (!this.size) {
             this.size = DEFAULT_SIZE;
-            this._applySize();
-            this._sizeSlider.setValue((DEFAULT_SIZE - MIN_SIZE) / (MAX_SIZE - MIN_SIZE));
-        });
-        this._menu.addMenuItem(resize);
+        }
+        this.actor.set_scale(this.size, this.size);
     }
 
     _applySize() {
@@ -148,11 +154,56 @@ class NetworkInfoDesklet extends Desklet.Desklet {
             text: title,
             style: "font-size: 9px; font-weight: bold; color: #9eabc0;"
         });
+        const heading = new St.BoxLayout({ vertical: false });
+        const copyButton = new St.Button({
+            label: _("Copiar"),
+            style: "padding: 2px 6px; color: #65b8ff; font-size: 9px; " +
+                "background-color: rgba(101, 184, 255, 0.1); border-radius: 4px;",
+            can_focus: true,
+            track_hover: true
+        });
+        copyButton.set_accessible_name(_("Copiar ") + title.toLowerCase());
+        copyButton.connect("clicked", () => this._copyIp(value, copyButton));
+        label.set_x_expand(true);
+        heading.add_child(label);
+        heading.add_child(copyButton);
         value.style = "font-size: 12px; color: #f1f5fb;";
         value.clutter_text.set_line_wrap(true);
-        section.add_child(label);
+        section.add_child(heading);
         section.add_child(value);
         return section;
+    }
+
+    _copyIp(valueLabel, button) {
+        const value = valueLabel.text.trim();
+        const unavailable = [
+            "",
+            _("Consultando..."),
+            _("Sin conexión"),
+            _("No disponible")
+        ];
+        if (unavailable.includes(value)) {
+            return;
+        }
+
+        try {
+            St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, value);
+            button.label = _("¡Copiado!");
+            button.style = "padding: 2px 6px; color: #6ee7a8; font-size: 9px; " +
+                "background-color: rgba(110, 231, 168, 0.12); border-radius: 4px;";
+            const timeout = Mainloop.timeout_add(1400, () => {
+                button.label = _("Copiar");
+                button.style = "padding: 2px 6px; color: #65b8ff; font-size: 9px; " +
+                    "background-color: rgba(101, 184, 255, 0.1); border-radius: 4px;";
+                this._copyFeedbackTimeouts = this._copyFeedbackTimeouts.filter(
+                    id => id !== timeout
+                );
+                return false;
+            });
+            this._copyFeedbackTimeouts.push(timeout);
+        } catch (error) {
+            global.logError("Desklet de red: no se pudo copiar la IP: " + error);
+        }
     }
 
     on_desklet_added_to_desktop() {
@@ -170,6 +221,10 @@ class NetworkInfoDesklet extends Desklet.Desklet {
             Mainloop.source_remove(this._timer);
             this._timer = 0;
         }
+        for (const timeout of this._copyFeedbackTimeouts) {
+            Mainloop.source_remove(timeout);
+        }
+        this._copyFeedbackTimeouts = [];
     }
 
     _readFile(path) {
@@ -223,7 +278,12 @@ class NetworkInfoDesklet extends Desklet.Desklet {
         if (!found) {
             throw new Error("No se encontró una interfaz de red activa");
         }
-        return { received, sent, at: GLib.get_monotonic_time() };
+        return {
+            received,
+            sent,
+            interfaceName: defaultInterface || _("Todas"),
+            at: GLib.get_monotonic_time()
+        };
     }
 
     _getLocalIps() {
@@ -252,12 +312,35 @@ class NetworkInfoDesklet extends Desklet.Desklet {
         return (bitsPerSecond / 1000000).toFixed(2) + " Mbps";
     }
 
+    _formatBytes(bytes) {
+        if (bytes < 1024) {
+            return Math.round(bytes) + " B";
+        }
+        if (bytes < 1024 * 1024) {
+            return (bytes / 1024).toFixed(1) + " KB";
+        }
+        if (bytes < 1024 * 1024 * 1024) {
+            return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+        }
+        return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+    }
+
     _update() {
         try {
             const current = this._getCounters();
             if (this._previousCounters) {
                 const elapsed = (current.at - this._previousCounters.at) / 1000000;
                 if (elapsed > 0) {
+                    if (current.interfaceName === this._previousCounters.interfaceName) {
+                        this._sessionReceived += Math.max(
+                            0,
+                            current.received - this._previousCounters.received
+                        );
+                        this._sessionSent += Math.max(
+                            0,
+                            current.sent - this._previousCounters.sent
+                        );
+                    }
                     this._download.text = this._formatRate(
                         (current.received - this._previousCounters.received) / elapsed
                     );
@@ -267,6 +350,9 @@ class NetworkInfoDesklet extends Desklet.Desklet {
                 }
             }
             this._previousCounters = current;
+            this._interfaceLabel.text = current.interfaceName;
+            this._sessionLabel.text = _("Sesión: ↓ ") + this._formatBytes(this._sessionReceived) +
+                "  ↑ " + this._formatBytes(this._sessionSent);
             this._status.text = "● " + _("ACTIVA");
             this._status.style = "font-size: 10px; color: #6ee7a8;";
         } catch (error) {
@@ -323,6 +409,38 @@ class NetworkInfoDesklet extends Desklet.Desklet {
                 this._publicIpLabel.text = this._publicIp;
             }
         });
+    }
+
+    finalizeContextMenu() {
+        super.finalizeContextMenu();
+
+        const resize = new PopupMenu.PopupSubMenuMenuItem(_("Redimensionar"));
+        this._sizeSlider = new PopupMenu.PopupSliderMenuItem(
+            (this.size - MIN_SIZE) / (MAX_SIZE - MIN_SIZE)
+        );
+        this._sizeSlider.connect("value-changed", (slider, value) => {
+            this.size = Math.round((MIN_SIZE + value * (MAX_SIZE - MIN_SIZE)) * 20) / 20;
+            this._applySize();
+            slider.setValue((this.size - MIN_SIZE) / (MAX_SIZE - MIN_SIZE));
+        });
+        resize.menu.addMenuItem(this._sizeSlider);
+        resize.menu.addAction(_("Aumentar tamaño"), () => {
+            this.size = Math.min(MAX_SIZE, Math.round((this.size + 0.05) * 20) / 20);
+            this._applySize();
+            this._sizeSlider.setValue((this.size - MIN_SIZE) / (MAX_SIZE - MIN_SIZE));
+        });
+        resize.menu.addAction(_("Disminuir tamaño"), () => {
+            this.size = Math.max(MIN_SIZE, Math.round((this.size - 0.05) * 20) / 20);
+            this._applySize();
+            this._sizeSlider.setValue((this.size - MIN_SIZE) / (MAX_SIZE - MIN_SIZE));
+        });
+        resize.menu.addAction(_("Tamaño normal"), () => {
+            this.size = DEFAULT_SIZE;
+            this._applySize();
+            this._sizeSlider.setValue((DEFAULT_SIZE - MIN_SIZE) / (MAX_SIZE - MIN_SIZE));
+        });
+        this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        this._menu.addMenuItem(resize);
     }
 }
 
