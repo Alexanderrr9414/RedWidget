@@ -18,3 +18,9 @@ Puedes cambiar entre los temas **Océano**, **Medianoche**, **Bosque** y
 
 La IP pública requiere conexión a Internet y `curl`. El resto de datos se
 obtiene localmente desde Linux.
+
+## Derechos de autor
+
+Copyright © 2026 Alexanderrr9414. Todos los derechos reservados. El código se
+publica para consulta; no se permite copiarlo, modificarlo, redistribuirlo ni
+crear derivados sin permiso escrito. Consulta `LICENSE`.
