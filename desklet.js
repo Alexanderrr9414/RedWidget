@@ -10,6 +10,69 @@ const Settings = imports.ui.settings;
 const MIN_SIZE = 0.75;
 const MAX_SIZE = 1.5;
 const DEFAULT_SIZE = 1;
+const DEFAULT_THEME = "ocean";
+const THEMES = {
+    ocean: {
+        name: _("Océano"),
+        background: "rgba(24, 30, 42, 0.96)",
+        card: "rgba(255, 255, 255, 0.07)",
+        section: "rgba(255, 255, 255, 0.05)",
+        heading: "#dce6f5",
+        text: "#f1f5fb",
+        muted: "#9eabc0",
+        download: "#65b8ff",
+        upload: "#b69cff",
+        buttonBackground: "rgba(101, 184, 255, 0.1)",
+        button: "#65b8ff",
+        success: "#6ee7a8",
+        successBackground: "rgba(110, 231, 168, 0.12)"
+    },
+    midnight: {
+        name: _("Medianoche"),
+        background: "rgba(26, 20, 42, 0.97)",
+        card: "rgba(193, 159, 255, 0.12)",
+        section: "rgba(193, 159, 255, 0.08)",
+        heading: "#f0e5ff",
+        text: "#fff8ff",
+        muted: "#b9a9cc",
+        download: "#c5a1ff",
+        upload: "#ff91c8",
+        buttonBackground: "rgba(197, 161, 255, 0.14)",
+        button: "#d5baff",
+        success: "#82e6b5",
+        successBackground: "rgba(130, 230, 181, 0.14)"
+    },
+    forest: {
+        name: _("Bosque"),
+        background: "rgba(17, 38, 32, 0.97)",
+        card: "rgba(107, 221, 170, 0.12)",
+        section: "rgba(107, 221, 170, 0.08)",
+        heading: "#ddf7e9",
+        text: "#f0fff6",
+        muted: "#a5c6b3",
+        download: "#75e0ae",
+        upload: "#b4df82",
+        buttonBackground: "rgba(117, 224, 174, 0.14)",
+        button: "#8aebbb",
+        success: "#8aebbb",
+        successBackground: "rgba(138, 235, 187, 0.14)"
+    },
+    light: {
+        name: _("Claro"),
+        background: "rgba(238, 243, 250, 0.98)",
+        card: "rgba(255, 255, 255, 0.92)",
+        section: "rgba(220, 229, 241, 0.78)",
+        heading: "#263449",
+        text: "#1d2939",
+        muted: "#5b6b80",
+        download: "#1473cf",
+        upload: "#724ac8",
+        buttonBackground: "rgba(20, 115, 207, 0.11)",
+        button: "#1268b8",
+        success: "#168454",
+        successBackground: "rgba(22, 132, 84, 0.12)"
+    }
+};
 
 class NetworkInfoDesklet extends Desklet.Desklet {
     constructor(metadata, deskletId) {
@@ -25,6 +88,8 @@ class NetworkInfoDesklet extends Desklet.Desklet {
 
         this.settings = new Settings.DeskletSettings(this, metadata.uuid, deskletId);
         this.settings.bind("size", "size", this._applySize);
+        this.theme = DEFAULT_THEME;
+        this.settings.bind("theme", "theme");
 
         this._previousCounters = null;
         this._timer = 0;
@@ -34,6 +99,10 @@ class NetworkInfoDesklet extends Desklet.Desklet {
         this._sessionReceived = 0;
         this._sessionSent = 0;
         this._copyFeedbackTimeouts = [];
+        this._themeMenuItems = [];
+        this._metricCards = [];
+        this._ipSections = [];
+        this._copyButtons = [];
         this._interfaceLabel = new St.Label({
             text: "",
             style: "font-size: 9px; color: #9eabc0;"
@@ -64,12 +133,14 @@ class NetworkInfoDesklet extends Desklet.Desklet {
             style: "min-width: 280px; padding: 14px; spacing: 10px; " +
                 "background-color: rgba(24, 30, 42, 0.96); border-radius: 12px;"
         });
+        this._content = content;
 
         const heading = new St.BoxLayout({ vertical: false });
         const title = new St.Label({
             text: _("RED EN VIVO"),
             style: "font-size: 12px; font-weight: bold; color: #dce6f5;"
         });
+        this._title = title;
         title.set_x_expand(true);
         heading.add_child(title);
         const headingRight = new St.BoxLayout({ vertical: true, style: "spacing: 1px;" });
@@ -78,8 +149,8 @@ class NetworkInfoDesklet extends Desklet.Desklet {
         heading.add_child(headingRight);
 
         const speeds = new St.BoxLayout({ vertical: false, style: "spacing: 8px;" });
-        const downloadCard = this._createMetric(_("↓  DESCARGA"), this._download, "#65b8ff");
-        const uploadCard = this._createMetric(_("↑  SUBIDA"), this._upload, "#b69cff");
+        const downloadCard = this._createMetric(_("↓  DESCARGA"), this._download, "download");
+        const uploadCard = this._createMetric(_("↑  SUBIDA"), this._upload, "upload");
         downloadCard.set_x_expand(true);
         uploadCard.set_x_expand(true);
         speeds.add_child(downloadCard);
@@ -100,6 +171,7 @@ class NetworkInfoDesklet extends Desklet.Desklet {
             can_focus: true,
             track_hover: true
         });
+        this._credit = credit;
         credit.connect("clicked", () => {
             try {
                 Gio.app_info_launch_default_for_uri(
@@ -120,6 +192,7 @@ class NetworkInfoDesklet extends Desklet.Desklet {
             this.size = DEFAULT_SIZE;
         }
         this.actor.set_scale(this.size, this.size);
+        this._applyTheme();
     }
 
     _applySize() {
@@ -139,6 +212,7 @@ class NetworkInfoDesklet extends Desklet.Desklet {
             text: title,
             style: "font-size: 9px; font-weight: bold; color: " + accent + ";"
         });
+        this._metricCards.push({ card, label, value, accent });
         card.add_child(label);
         card.add_child(value);
         return card;
@@ -162,8 +236,8 @@ class NetworkInfoDesklet extends Desklet.Desklet {
             can_focus: true,
             track_hover: true
         });
-        copyButton.set_accessible_name(_("Copiar ") + title.toLowerCase());
         copyButton.connect("clicked", () => this._copyIp(value, copyButton));
+        this._copyButtons.push(copyButton);
         label.set_x_expand(true);
         heading.add_child(label);
         heading.add_child(copyButton);
@@ -171,7 +245,56 @@ class NetworkInfoDesklet extends Desklet.Desklet {
         value.clutter_text.set_line_wrap(true);
         section.add_child(heading);
         section.add_child(value);
+        this._ipSections.push({ section, label, value });
         return section;
+    }
+
+    _applyTheme() {
+        const theme = THEMES[this.theme] || THEMES[DEFAULT_THEME];
+        this.theme = THEMES[this.theme] ? this.theme : DEFAULT_THEME;
+
+        if (this._content) {
+            this._content.style = "min-width: 280px; padding: 14px; spacing: 10px; " +
+                "background-color: " + theme.background + "; border-radius: 12px;";
+            this._title.style = "font-size: 12px; font-weight: bold; color: " + theme.heading + ";";
+            this._interfaceLabel.style = "font-size: 9px; color: " + theme.muted + ";";
+            this._sessionLabel.style = "font-size: 9px; color: " + theme.muted + ";";
+            this._download.style = "font-size: 21px; font-weight: bold; color: " + theme.text + ";";
+            this._upload.style = "font-size: 21px; font-weight: bold; color: " + theme.text + ";";
+            this._credit.style = "padding: 3px 7px; color: " + theme.button +
+                "; font-size: 9px; font-weight: bold; text-decoration: underline; " +
+                "background-color: " + theme.buttonBackground + "; border-radius: 5px;";
+        }
+
+        for (const metric of this._metricCards) {
+            const accent = metric.accent === "download" ? theme.download : theme.upload;
+            metric.card.style = "spacing: 5px; padding: 10px; background-color: " +
+                theme.card + "; border-radius: 8px;";
+            metric.label.style = "font-size: 9px; font-weight: bold; color: " + accent + ";";
+        }
+
+        for (const item of this._ipSections) {
+            item.section.style = "spacing: 3px; padding: 7px 9px; background-color: " +
+                theme.section + "; border-radius: 7px;";
+            item.label.style = "font-size: 9px; font-weight: bold; color: " + theme.muted + ";";
+            item.value.style = "font-size: 12px; color: " + theme.text + ";";
+        }
+
+        for (const button of this._copyButtons) {
+            this._styleCopyButton(button, false);
+        }
+
+        for (const item of this._themeMenuItems) {
+            item.label.set_text((item.theme === this.theme ? "✓  " : "") + THEMES[item.theme].name);
+        }
+    }
+
+    _styleCopyButton(button, copied) {
+        const theme = THEMES[this.theme] || THEMES[DEFAULT_THEME];
+        const color = copied ? theme.success : theme.button;
+        const background = copied ? theme.successBackground : theme.buttonBackground;
+        button.style = "padding: 2px 6px; color: " + color +
+            "; font-size: 9px; background-color: " + background + "; border-radius: 4px;";
     }
 
     _copyIp(valueLabel, button) {
@@ -189,12 +312,10 @@ class NetworkInfoDesklet extends Desklet.Desklet {
         try {
             St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, value);
             button.label = _("¡Copiado!");
-            button.style = "padding: 2px 6px; color: #6ee7a8; font-size: 9px; " +
-                "background-color: rgba(110, 231, 168, 0.12); border-radius: 4px;";
+            this._styleCopyButton(button, true);
             const timeout = Mainloop.timeout_add(1400, () => {
                 button.label = _("Copiar");
-                button.style = "padding: 2px 6px; color: #65b8ff; font-size: 9px; " +
-                    "background-color: rgba(101, 184, 255, 0.1); border-radius: 4px;";
+                this._styleCopyButton(button, false);
                 this._copyFeedbackTimeouts = this._copyFeedbackTimeouts.filter(
                     id => id !== timeout
                 );
@@ -354,7 +475,8 @@ class NetworkInfoDesklet extends Desklet.Desklet {
             this._sessionLabel.text = _("Sesión: ↓ ") + this._formatBytes(this._sessionReceived) +
                 "  ↑ " + this._formatBytes(this._sessionSent);
             this._status.text = "● " + _("ACTIVA");
-            this._status.style = "font-size: 10px; color: #6ee7a8;";
+            this._status.style = "font-size: 10px; color: " +
+                (THEMES[this.theme] || THEMES[DEFAULT_THEME]).success + ";";
         } catch (error) {
             global.logError("Desklet de red: " + error);
             this._download.text = _("No disponible");
@@ -439,8 +561,21 @@ class NetworkInfoDesklet extends Desklet.Desklet {
             this._applySize();
             this._sizeSlider.setValue((DEFAULT_SIZE - MIN_SIZE) / (MAX_SIZE - MIN_SIZE));
         });
+        const themeMenu = new PopupMenu.PopupSubMenuMenuItem(_("Tema"));
+        for (const themeName of Object.keys(THEMES)) {
+            const item = new PopupMenu.PopupMenuItem(THEMES[themeName].name);
+            item.theme = themeName;
+            item.connect("activate", () => {
+                this.theme = themeName;
+                this._applyTheme();
+            });
+            this._themeMenuItems.push(item);
+            themeMenu.menu.addMenuItem(item);
+        }
         this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         this._menu.addMenuItem(resize);
+        this._menu.addMenuItem(themeMenu);
+        this._applyTheme();
     }
 }
 

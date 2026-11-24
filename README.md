@@ -4,6 +4,8 @@ Desklet para Cinnamon que muestra la velocidad de descarga y subida, la interfaz
 activa, el tráfico acumulado durante la sesión y las IP local y pública. Las
 velocidades se actualizan cada segundo; la IP pública se consulta una vez por
 minuto mediante `api.ipify.org`. Cada IP tiene un botón para copiarla.
+Puedes cambiar entre los temas **Océano**, **Medianoche**, **Bosque** y
+**Claro** desde el menú de clic derecho; el tema elegido se guarda.
 
 ![Captura del widget Red en vivo](screenshots/red-en-vivo.png)
 
