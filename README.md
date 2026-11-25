@@ -57,7 +57,8 @@ Si no aparece después de instalarlo, cierra y vuelve a abrir la ventana de
 ### GNOME Shell (Ubuntu 24.04 o posterior)
 
 La extensión necesita GNOME Shell 46 o posterior. Comprueba tu versión con
-`gnome-shell --version`. Abre una terminal y ejecuta:
+`gnome-shell --version`. Para instalarla, copia y pega estos comandos en una
+terminal:
 
 ```bash
 sudo apt update
