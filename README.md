@@ -31,7 +31,13 @@ al ordenador anfitrión.
 El `.exe` no está firmado digitalmente; Windows SmartScreen puede avisar de
 que es una aplicación poco frecuente.
 
-### Cinnamon (Linux)
+### Linux Mint
+
+En la edición Cinnamon de Linux Mint, sigue los pasos de la sección
+[Cinnamon en otras distribuciones Linux](#cinnamon-en-otras-distribuciones-linux).
+Las ediciones MATE y Xfce no admiten desklets de Cinnamon.
+
+### Cinnamon en otras distribuciones Linux
 
 1. Abre una terminal y ejecuta:
 
