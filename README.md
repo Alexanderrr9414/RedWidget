@@ -74,17 +74,18 @@ EXT="$HOME/.local/share/gnome-shell/extensions/red-en-vivo@alexanderrr9414"
 mkdir -p "$EXT"
 curl -fsSL https://raw.githubusercontent.com/Alexanderrr9414/RedWidget/main/gnome/red-en-vivo@alexanderrr9414/metadata.json -o "$EXT/metadata.json"
 curl -fsSL https://raw.githubusercontent.com/Alexanderrr9414/RedWidget/main/gnome/red-en-vivo@alexanderrr9414/extension.js -o "$EXT/extension.js"
+```
+
+Después de descargar los archivos, cierra sesión y vuelve a entrar para que
+GNOME detecte la extensión. Luego actívala:
+
+```bash
 gnome-extensions enable red-en-vivo@alexanderrr9414
 ```
 
 El monitor aparece en la barra superior. Haz clic en él para ver las IP y
-copiarlas. Si no aparece, cierra sesión y vuelve a entrar. Para actualizar,
-repite los dos comandos `curl` y reinicia la extensión:
-
-```bash
-gnome-extensions disable red-en-vivo@alexanderrr9414
-gnome-extensions enable red-en-vivo@alexanderrr9414
-```
+copiarlas. Para actualizar, repite los dos comandos `curl`, cierra sesión y
+vuelve a entrar.
 
 En Cinnamon, GNOME y Windows, la consulta de IP pública requiere conexión a
 Internet.
