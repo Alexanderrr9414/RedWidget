@@ -33,10 +33,26 @@ que es una aplicación poco frecuente.
 
 ### Cinnamon (Linux)
 
-1. Clona este repositorio en
-   `~/.local/share/cinnamon/desklets/netinfo@local`.
-2. Activa **Red en vivo** desde la aplicación **Desklets** de Cinnamon.
-3. Usa el clic derecho en el escritorio para ajustar el tamaño.
+1. Abre una terminal y ejecuta:
+
+   ```bash
+   mkdir -p ~/.local/share/cinnamon/desklets
+   git clone https://github.com/Alexanderrr9414/RedWidget.git \
+     ~/.local/share/cinnamon/desklets/netinfo@local
+   ```
+
+2. Abre **Preferencias del sistema → Desklets**, busca **Red en vivo** en la
+   lista de desklets instalados y añádelo al escritorio.
+3. Usa el clic derecho sobre el desklet para cambiar el tema o el tamaño.
+
+Para actualizarlo cuando haya una nueva versión, ejecuta:
+
+```bash
+git -C ~/.local/share/cinnamon/desklets/netinfo@local pull
+```
+
+Si no aparece después de instalarlo, cierra y vuelve a abrir la ventana de
+**Desklets**.
 
 En ambas versiones, la IP pública requiere conexión a Internet.
 
