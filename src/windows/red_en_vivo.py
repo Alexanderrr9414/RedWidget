@@ -6,12 +6,14 @@ import threading
 import time
 import urllib.request
 from pathlib import Path
-from tkinter import Button, Frame, Label, Tk, Toplevel
+import sys
+from tkinter import Button, Frame, Label, Tk, Toplevel, messagebox
 
 import pystray
 from PIL import Image, ImageDraw
 
 from network import NO_CONNECTION, NetworkSampler, byte_text
+from startup import is_startup_enabled, set_startup_enabled
 
 THEMES = {
     "ocean": {
@@ -91,6 +93,15 @@ class NetworkTrayApp:
         self.window = None
         self.last_public_ip_request = 0.0
         self.public_ip = "Consultando..."
+        self.startup_error = None
+        try:
+            self.startup_enabled = is_startup_enabled()
+            if getattr(sys, "frozen", False) and not self.startup_enabled:
+                set_startup_enabled(True)
+                self.startup_enabled = True
+        except OSError as error:
+            self.startup_enabled = False
+            self.startup_error = str(error)
 
         self._create_widgets()
         self.icon = pystray.Icon(
@@ -113,6 +124,11 @@ class NetworkTrayApp:
                         ]
                     ),
                 ),
+                pystray.MenuItem(
+                    "Iniciar con Windows",
+                    self._tray_toggle_startup,
+                    checked=lambda _item: self.startup_enabled,
+                ),
                 pystray.MenuItem("Actualizar IP pública", self._tray_refresh_public_ip),
                 pystray.MenuItem("Salir", self._tray_exit),
             ),
@@ -120,6 +136,8 @@ class NetworkTrayApp:
         threading.Thread(target=self.icon.run, daemon=True).start()
         self.root.after(100, self._drain_results)
         self.root.after(1000, self._update)
+        if self.startup_error:
+            self.root.after(300, self._show_startup_error)
         self._request_public_ip()
         self.root.mainloop()
 
@@ -311,6 +329,30 @@ class NetworkTrayApp:
     def _tray_exit(self, _icon, _item):
         if not self.closed:
             self.root.after(0, self.close)
+
+    def _tray_toggle_startup(self, _icon, _item):
+        if not self.closed:
+            self.root.after(0, self._toggle_startup)
+
+    def _toggle_startup(self):
+        try:
+            set_startup_enabled(not self.startup_enabled)
+            self.startup_enabled = not self.startup_enabled
+        except OSError as error:
+            messagebox.showerror(
+                "Red en vivo",
+                f"No se pudo cambiar el inicio automático:\n{error}",
+                parent=self.window,
+            )
+
+    def _show_startup_error(self):
+        if self.startup_error and not self.closed:
+            messagebox.showerror(
+                "Red en vivo",
+                "No se pudo configurar el inicio automático de Windows:\n"
+                + self.startup_error,
+                parent=self.window,
+            )
 
     def show_window(self):
         if self.closed:

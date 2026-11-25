@@ -14,16 +14,16 @@ Puedes cambiar entre los temas **Océano**, **Medianoche**, **Bosque** y
 
 ### Windows
 
-1. Abre `windows/RedEnVivo.exe` desde la carpeta del proyecto y ejecútalo.
-   El icono queda junto al reloj de Windows;
+1. Ejecuta `windows/RedEnVivo.exe`. En el primer inicio se configura para
+   arrancar con Windows; el icono queda junto al reloj;
    haz clic en él para abrir el panel. Cerrar el panel lo deja en la bandeja.
-2. Haz clic derecho en el icono para cambiar de tema, actualizar la IP pública
-   o salir. La preferencia de tema se guarda en `%APPDATA%\RedEnVivo`.
-   Conserva también `windows/ThirdPartyLicenses`.
+2. Haz clic derecho en el icono para cambiar de tema, activar o desactivar el
+   inicio automático, actualizar la IP pública o salir. El tema se guarda en
+   `%APPDATA%\RedEnVivo`.
 
 El `.exe` está incluido directamente en `windows/`. GitHub Actions comprueba que
 la versión de Windows se pueda compilar, pero no necesitas descargar nada desde
-Actions.
+Actions. Las fuentes y licencias están fuera de la carpeta `windows/`.
 
 ### Cinnamon (Linux)
 

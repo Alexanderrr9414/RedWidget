@@ -4,7 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - "windows/*.py"
+      - "src/windows/*.py"
+      - "tests/*.py"
       - "requirements-windows.txt"
       - ".github/workflows/build-windows.yml"
   workflow_dispatch:
@@ -36,7 +37,16 @@ jobs:
         run: >-
           pyinstaller --noconfirm --clean --onefile --windowed
           --name RedEnVivo --collect-all pystray --collect-all PIL
-          windows/red_en_vivo.py
+          src/windows/red_en_vivo.py
 
       - name: Collect third-party license texts
-        run: python windows/package_licenses.py
+        run: python src/windows/package_licenses.py
+
+      - name: Upload executable for packaging
+        uses: actions/upload-artifact@v4
+        with:
+          name: RedEnVivo-Windows-build
+          path: |
+            dist/RedEnVivo.exe
+            dist/ThirdPartyLicenses/
+          if-no-files-found: error

@@ -6,6 +6,6 @@ The Windows app bundles these unmodified third-party packages:
 - **psutil 6.1.1** — BSD-3-Clause
 - **Pillow 11.0.0** — MIT-CMU
 
-The Windows build artifact includes the license texts under `ThirdPartyLicenses`.
+The license texts are stored under `third_party_licenses/`.
 These packages remain subject to their own licenses; the repository's
 `LICENSE` applies to Red en vivo's own code.

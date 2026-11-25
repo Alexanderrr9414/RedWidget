@@ -1,12 +1,13 @@
 import sys
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import patch
 
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "windows"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src" / "windows"))
 import network
+import startup
 
 
 class NetworkFormattingTests(unittest.TestCase):
@@ -87,6 +88,44 @@ class NetworkSamplerTests(unittest.TestCase):
                 network.NetworkSampler.local_ips("Ethernet"),
                 "192.168.1.8, fd00::7",
             )
+
+
+class StartupRegistrationTests(unittest.TestCase):
+    def test_enable_disable_and_check_startup_entry(self):
+        values = {}
+        registry = ModuleType("winreg")
+        registry.HKEY_CURRENT_USER = object()
+        registry.KEY_QUERY_VALUE = 1
+        registry.KEY_SET_VALUE = 2
+        registry.REG_SZ = 3
+
+        class RegistryKey:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+        def open_key(_root, _path, _reserved, _access):
+            if not values:
+                raise FileNotFoundError
+            return RegistryKey()
+
+        registry.OpenKey = open_key
+        registry.CreateKeyEx = lambda *_args: RegistryKey()
+        registry.QueryValueEx = lambda _key, name: (values[name], registry.REG_SZ)
+        registry.SetValueEx = lambda _key, name, _reserved, _kind, value: values.update(
+            {name: value}
+        )
+        registry.DeleteValue = lambda _key, name: values.pop(name)
+
+        with patch.dict(sys.modules, {"winreg": registry}):
+            self.assertFalse(startup.is_startup_enabled())
+            startup.set_startup_enabled(True)
+            self.assertEqual(values[startup.VALUE_NAME], startup.startup_command())
+            self.assertTrue(startup.is_startup_enabled())
+            startup.set_startup_enabled(False)
+            self.assertFalse(startup.is_startup_enabled())
 
 
 if __name__ == "__main__":
