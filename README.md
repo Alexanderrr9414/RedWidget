@@ -29,8 +29,7 @@ la VM (por ejemplo, `10.0.2.15` con VirtualBox en modo NAT), no necesariamente
 al ordenador anfitrión.
 
 El `.exe` no está firmado digitalmente; Windows SmartScreen puede avisar de
-que es una aplicación poco frecuente. Para quitar ese aviso de forma fiable
-hace falta firmarlo con un certificado Authenticode de confianza.
+que es una aplicación poco frecuente.
 
 ### Cinnamon (Linux)
 
