@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src" / "windows"))
 import network
+import public_ip
 import startup
 
 
@@ -126,6 +127,37 @@ class StartupRegistrationTests(unittest.TestCase):
             self.assertTrue(startup.is_startup_enabled())
             startup.set_startup_enabled(False)
             self.assertFalse(startup.is_startup_enabled())
+
+
+class PublicIpTests(unittest.TestCase):
+    def test_tries_an_alternate_provider_after_a_failure(self):
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self, _limit):
+                return b"203.0.113.8\n"
+
+        with patch.object(
+            public_ip.urllib.request,
+            "urlopen",
+            side_effect=(OSError("DNS lookup failed"), Response()),
+        ) as open_url:
+            self.assertEqual(public_ip.fetch_public_ip(), "203.0.113.8")
+
+        self.assertEqual(open_url.call_count, 2)
+
+    def test_reports_when_all_public_ip_providers_fail(self):
+        with patch.object(
+            public_ip.urllib.request,
+            "urlopen",
+            side_effect=OSError("DNS lookup failed"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "todos los servicios"):
+                public_ip.fetch_public_ip()
 
 
 if __name__ == "__main__":

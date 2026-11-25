@@ -24,6 +24,13 @@ Puedes cambiar entre los temas **Océano**, **Medianoche**, **Bosque** y
 El `.exe` está incluido directamente en `windows/`. GitHub Actions comprueba que
 la versión de Windows se pueda compilar, pero no necesitas descargar nada desde
 Actions. Las fuentes y licencias están fuera de la carpeta `windows/`.
+En una máquina virtual, la IP privada mostrada pertenece a Windows dentro de
+la VM (por ejemplo, `10.0.2.15` con VirtualBox en modo NAT), no necesariamente
+al ordenador anfitrión.
+
+El `.exe` no está firmado digitalmente; Windows SmartScreen puede avisar de
+que es una aplicación poco frecuente. Para quitar ese aviso de forma fiable
+hace falta firmarlo con un certificado Authenticode de confianza.
 
 ### Cinnamon (Linux)
 

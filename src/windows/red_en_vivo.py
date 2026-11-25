@@ -1,18 +1,17 @@
-import ipaddress
 import json
 import os
 import queue
+import sys
 import threading
 import time
-import urllib.request
 from pathlib import Path
-import sys
 from tkinter import Button, Frame, Label, Tk, Toplevel, messagebox
 
 import pystray
 from PIL import Image, ImageDraw
 
 from network import NO_CONNECTION, NetworkSampler, byte_text
+from public_ip import fetch_public_ip
 from startup import is_startup_enabled, set_startup_enabled
 
 THEMES = {
@@ -215,7 +214,7 @@ class NetworkTrayApp:
         self.ip_rows = {}
         self.ip_labels = {}
         self.copy_buttons = {}
-        for key, label in (("local", "IP LOCAL"), ("public", "IP PÚBLICA")):
+        for key, label in (("local", "IP PRIVADA (LOCAL)"), ("public", "IP PÚBLICA")):
             section = Frame(self.content, bg=theme["section"], padx=10, pady=8)
             section.pack(fill="x", pady=(0, 8))
             row = Frame(section, bg=theme["section"])
@@ -367,7 +366,7 @@ class NetworkTrayApp:
 
     def _copy_ip(self, key):
         value = self.ip_labels[key].cget("text")
-        if value in ("", "Consultando...", NO_IP, NO_CONNECTION):
+        if value in ("", "Consultando...", NO_CONNECTION) or value.startswith(NO_IP):
             return
         self.root.clipboard_clear()
         self.root.clipboard_append(value)
@@ -390,15 +389,9 @@ class NetworkTrayApp:
 
         def fetch():
             try:
-                request = urllib.request.Request(
-                    "https://api.ipify.org",
-                    headers={"User-Agent": "RedEnVivo/1.0"},
-                )
-                with urllib.request.urlopen(request, timeout=5) as response:
-                    value = response.read(64).decode("ascii").strip()
-                ipaddress.ip_address(value)
+                value = fetch_public_ip()
                 self.results.put(("public_ip", value))
-            except (OSError, UnicodeError, ValueError) as error:
+            except RuntimeError as error:
                 self.results.put(("public_ip_error", str(error)))
 
         threading.Thread(target=fetch, daemon=True).start()
@@ -414,7 +407,9 @@ class NetworkTrayApp:
                 self.ip_labels["public"].configure(text=value)
             else:
                 self.public_ip = NO_IP
-                self.ip_labels["public"].configure(text=NO_IP)
+                self.ip_labels["public"].configure(
+                    text=NO_IP + " (revisa Internet/DNS)"
+                )
                 print(f"No se pudo consultar la IP pública: {value}")
         if not self.closed:
             self.root.after(100, self._drain_results)
