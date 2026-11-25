@@ -1,0 +1,7 @@
+{
+  "uuid": "red-en-vivo@alexanderrr9414",
+  "name": "Red en vivo",
+  "description": "Muestra la velocidad de red y las direcciones IP en el panel.",
+  "shell-version": ["46", "47", "48", "49", "50", "51"],
+  "version": 1
+}
