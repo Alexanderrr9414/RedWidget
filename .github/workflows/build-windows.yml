@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "windows/**"
+      - "windows/*.py"
       - "requirements-windows.txt"
       - ".github/workflows/build-windows.yml"
   workflow_dispatch:
@@ -40,13 +40,3 @@ jobs:
 
       - name: Collect third-party license texts
         run: python windows/package_licenses.py
-
-      - name: Upload executable
-        uses: actions/upload-artifact@v4
-        with:
-          name: RedEnVivo-Windows
-          path: |
-            dist/RedEnVivo.exe
-            dist/ThirdPartyLicenses/
-          if-no-files-found: error
-          retention-days: 30

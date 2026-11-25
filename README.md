@@ -14,15 +14,16 @@ Puedes cambiar entre los temas **Océano**, **Medianoche**, **Bosque** y
 
 ### Windows
 
-1. Abre **Actions → Build Windows app** en GitHub y descarga el artefacto
-   `RedEnVivo-Windows` de la última ejecución correcta.
-2. Extrae y ejecuta `RedEnVivo.exe`. El icono queda junto al reloj de Windows;
+1. Abre `windows/RedEnVivo.exe` desde la carpeta del proyecto y ejecútalo.
+   El icono queda junto al reloj de Windows;
    haz clic en él para abrir el panel. Cerrar el panel lo deja en la bandeja.
-3. Haz clic derecho en el icono para cambiar de tema, actualizar la IP pública
+2. Haz clic derecho en el icono para cambiar de tema, actualizar la IP pública
    o salir. La preferencia de tema se guarda en `%APPDATA%\RedEnVivo`.
-   Conserva también la carpeta `ThirdPartyLicenses` incluida en el archivo.
+   Conserva también `windows/ThirdPartyLicenses`.
 
-El `.exe` se genera automáticamente para Windows mediante GitHub Actions.
+El `.exe` está incluido directamente en `windows/`. GitHub Actions comprueba que
+la versión de Windows se pueda compilar, pero no necesitas descargar nada desde
+Actions.
 
 ### Cinnamon (Linux)
 
