@@ -1,4 +1,6 @@
+import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -92,7 +94,7 @@ class NetworkSamplerTests(unittest.TestCase):
 
 
 class StartupRegistrationTests(unittest.TestCase):
-    def test_enable_disable_and_check_startup_entry(self):
+    def test_enable_disable_creates_visible_startup_shortcut(self):
         values = {}
         registry = ModuleType("winreg")
         registry.HKEY_CURRENT_USER = object()
@@ -115,18 +117,31 @@ class StartupRegistrationTests(unittest.TestCase):
         registry.OpenKey = open_key
         registry.CreateKeyEx = lambda *_args: RegistryKey()
         registry.QueryValueEx = lambda _key, name: (values[name], registry.REG_SZ)
-        registry.SetValueEx = lambda _key, name, _reserved, _kind, value: values.update(
-            {name: value}
-        )
         registry.DeleteValue = lambda _key, name: values.pop(name)
 
-        with patch.dict(sys.modules, {"winreg": registry}):
-            self.assertFalse(startup.is_startup_enabled())
-            startup.set_startup_enabled(True)
-            self.assertEqual(values[startup.VALUE_NAME], startup.startup_command())
-            self.assertTrue(startup.is_startup_enabled())
-            startup.set_startup_enabled(False)
-            self.assertFalse(startup.is_startup_enabled())
+        with tempfile.TemporaryDirectory() as appdata:
+            values[startup.VALUE_NAME] = "old registry startup entry"
+
+            def create_shortcut(*_args, **_kwargs):
+                shortcut = startup.startup_shortcut()
+                shortcut.parent.mkdir(parents=True, exist_ok=True)
+                shortcut.touch()
+                return SimpleNamespace(returncode=0, stderr="")
+
+            with (
+                patch.dict(sys.modules, {"winreg": registry}),
+                patch.dict(os.environ, {"APPDATA": appdata}),
+                patch.object(startup.subprocess, "run", side_effect=create_shortcut) as run,
+            ):
+                self.assertFalse(startup.is_startup_enabled())
+                startup.set_startup_enabled(True)
+                self.assertTrue(startup.is_startup_enabled())
+                self.assertFalse(values)
+                run.assert_called_once()
+                self.assertIn("CreateShortcut", run.call_args.args[0][-1])
+
+                startup.set_startup_enabled(False)
+                self.assertFalse(startup.is_startup_enabled())
 
 
 class PublicIpTests(unittest.TestCase):

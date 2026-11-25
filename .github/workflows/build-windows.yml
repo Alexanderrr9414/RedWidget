@@ -41,3 +41,10 @@ jobs:
 
       - name: Collect third-party license texts
         run: python src/windows/package_licenses.py
+
+      - name: Upload executable for packaging
+        uses: actions/upload-artifact@v4
+        with:
+          name: RedEnVivo-Windows-startup-fix
+          path: dist/RedEnVivo.exe
+          if-no-files-found: error
